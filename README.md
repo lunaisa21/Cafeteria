@@ -3,7 +3,7 @@ Sistema de gestión de pedidos para un local con productos personalizables, desa
 
 ## Alcance del Proyecto
 
-* **Funcionalidades incluidas:** (Ej. Registro de usuarios, gestión de inventario, reportes en PDF).
-* **Limitaciones o fuera de alcance:** (Ej. No incluye pasarela de pagos en esta primera versión).
+* **Funcionalidades incluidas:** Gestión de inventario y control de stock.
+Para el programa implementamos todas la funcionalidaes de la propiesta.
 
 
