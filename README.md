@@ -6,7 +6,6 @@ Sistema de gestión de pedidos para un local con productos personalizables, desa
 * **Lenguaje:** JDK 21
 * **Gestor de dependencias:** Maven 3.2
 * **Desarrollado por:** Luna Isabella Martinez Marthos, Daniel Alfonso Mateus Neva, Harold David Higuera Torres
-* **Asesorado por:** ..
 * **Versión:** 1.0
 
 ## Alcance del Proyecto
