@@ -5,5 +5,5 @@ Sistema de gestión de pedidos para un local con productos personalizables, desa
 
 * **Funcionalidades incluidas:** Gestión de inventario y control de stock.
 Para el programa implementamos todas la funcionalidaes de la propuesta.
-(qué funcionalidades de la propuesta implementará y cuáles dejará fuera, con la razón)
+
 
