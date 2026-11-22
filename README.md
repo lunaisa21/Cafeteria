@@ -24,7 +24,7 @@ Sistema de gestión de pedidos para un local con productos personalizables, desa
 * **Autenticación avanzada:** Solo se implementará un login básico para diferenciar roles (Administrador vs Mesero/Cajero), sin llegar a estándares de producción.
 
 ## Documentación Adicional
-Toda la documentación profunda sobre la arquitectura, problemas de diseño, justificación de patrones (Strategy, Observer, Decorator, Builder) y los diagramas UML se encuentran en la pestaña **[Wiki](https://github.com/lunaisa21/Cafeteria/wiki)** de este repositorio.
+Toda la documentación profunda sobre la arquitectura, problemas de diseño, justificación de patrones (Strategy, Observer, Decorator) y los diagramas UML se encuentran en la pestaña **[Wiki](https://github.com/lunaisa21/Cafeteria/wiki)** de este repositorio.
 
 ## Cómo compilar y ejecutar
 (Faltaria colocar las instrucciones para compilar el codigo :D)
