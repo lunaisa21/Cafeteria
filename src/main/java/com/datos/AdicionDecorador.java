@@ -1,4 +1,4 @@
 package com.datos;
 
-public interface AdicionDecorador {
+public class AdicionDecorador {
 }
