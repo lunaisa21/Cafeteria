@@ -1,5 +1,6 @@
 package com.datos;
 
+import Operaciones.PedidoObservador;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -8,11 +9,21 @@ import java.util.List;
 
 @Getter
 @Setter
-public class Pedidos {
+public class Pedido {
     private int mesa;
     private LocalDateTime fecha;
     private EstadoPedido estado;
     private MetodoPago metodoPago;
     private List<LineaPedido> lineas;
     private double total;
+
+    public void cambiarEstadoPedido(EstadoPedido e) {
+        this.estado = estado;
+    }
+    public void agregarObservador(PedidoObservador o){
+
+    }
+    public void notificarObservadores(){
+        
+    }
 }
