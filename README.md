@@ -11,12 +11,11 @@ Sistema de gestión de pedidos para un local con productos personalizables, desa
 ## Alcance del Proyecto
 
 ### Funcionalidades Incluidas
-1. **Gestión de Menú y Personalización:** Adiciones a platos y bebidas que modifican dinámicamente el precio y la descripción (RQ02, RQ03, RQ08).
-2. **Armado de Combos:** Creación de combos paso a paso (RQ04).
-3. **Flujo y Estados del Pedido:** Ciclo de vida del pedido (Pendiente, En preparación, Listo, etc.) con alertas automáticas a cocina, caja y mesero (RQ06, RQ09, RQ11).
-4. **Motor de Promociones:** Aplicación de descuentos según día de la semana y franja horaria (RQ05).
-5. **Gestión de Inventario:** Descuento automático de stock al confirmar pedidos, bloqueo de productos agotados y alertas de stock mínimo (RF12, RF13, RF14).
-6. **Cierre de Caja:** Reporte de ventas diario y cálculo de totales (RQ07, RF10).
+1. **Gestión de Menú y Personalización:** Adiciones a platos y bebidas que modifican dinámicamente el precio y la descripción (RQ02, RQ03, RQ07).
+3. **Flujo y Estados del Pedido:** Ciclo de vida del pedido (Pendiente, En preparación, Listo, etc.) con alertas automáticas a cocina, caja y mesero (RQ05, RQ08, RQ10).
+4. **Motor de Promociones:** Aplicación de descuentos según día de la semana y franja horaria (RQ04).
+5. **Gestión de Inventario:** Descuento automático de stock al confirmar pedidos, bloqueo de productos agotados y alertas de stock mínimo (RF11, RF12, RF13).
+6. **Cierre de Caja:** Reporte de ventas diario y cálculo de totales (RQ06, RF09).
 7. **Doble Interfaz:** Núcleo de negocio independiente que alimenta tanto a la interfaz de consola como a la interfaz gráfica (GUI).
 
 ### Funcionalidades Excluidas (y su razón)
@@ -25,7 +24,7 @@ Sistema de gestión de pedidos para un local con productos personalizables, desa
 * **Autenticación avanzada:** Solo se implementará un login básico para diferenciar roles (Administrador vs Mesero/Cajero), sin llegar a estándares de producción.
 
 ## Documentación Adicional
-Toda la documentación profunda sobre la arquitectura, problemas de diseño, justificación de patrones (Strategy, Observer, Decorator, Builder) y los diagramas UML se encuentran en la pestaña **[Wiki](https://github.com/lunaisa21/Cafeteria/wiki)** de este repositorio.
+Toda la documentación profunda sobre la arquitectura, problemas de diseño, justificación de patrones (Strategy, Observer, Decorator) y los diagramas UML se encuentran en la pestaña **[Wiki](https://github.com/lunaisa21/Cafeteria/wiki)** de este repositorio.
 
 ## Cómo compilar y ejecutar
 (Faltaria colocar las instrucciones para compilar el codigo :D)
