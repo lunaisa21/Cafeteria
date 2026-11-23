@@ -1,4 +1,14 @@
 package com.datos;
+import datos.producto;
+import lombok.Getter;
+import lombok.Setter;
 
-public interface AdicionDecorador {
+@Getter
+@Setter
+public class AdicionDecorador {
+    // atributos
+    private String nombre;
+    private double costoExtra;
+    private producto Producto;
+
 }
