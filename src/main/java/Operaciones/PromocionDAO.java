@@ -13,5 +13,6 @@ public class PromocionDAO {
     }
 
     public Promocion[] consultarActivas() {
+        return new Promocion[0];
     }
 }
