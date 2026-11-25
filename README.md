@@ -17,7 +17,7 @@ Sistema de gestión de pedidos para un local con productos personalizables, desa
 5. **Gestión de Inventario:** Descuento automático de stock al confirmar pedidos, bloqueo de productos agotados y alertas de stock mínimo (RF11, RF12, RF13).
 6. **Cierre de Caja:** Reporte de ventas diario y cálculo de totales (RQ06, RF09).
 7. **Doble Interfaz:** Núcleo de negocio independiente que alimenta tanto a la interfaz de consola como a la interfaz gráfica (GUI).
-8.**Base de Datos Relacional (PostgreSQL en Neon):** Persistencia de datos en base de datos relacional PostgreSQL alojada en Neon mediante JDBC/DAO.
+8. **Base de Datos Relacional:** (PostgreSQL en Neon):** Persistencia de datos en base de datos relacional PostgreSQL alojada en Neon mediante JDBC/DAO.
 9. **Inicio de Sesión y Control de Roles:** Módulo de login para autenticar usuarios y diferenciar roles (Administrador vs. Mesero/Cajero).
 
 ### Funcionalidades Excluidas (y su razón)
