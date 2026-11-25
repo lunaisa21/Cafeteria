@@ -17,11 +17,14 @@ Sistema de gestión de pedidos para un local con productos personalizables, desa
 5. **Gestión de Inventario:** Descuento automático de stock al confirmar pedidos, bloqueo de productos agotados y alertas de stock mínimo (RF11, RF12, RF13).
 6. **Cierre de Caja:** Reporte de ventas diario y cálculo de totales (RQ06, RF09).
 7. **Doble Interfaz:** Núcleo de negocio independiente que alimenta tanto a la interfaz de consola como a la interfaz gráfica (GUI).
+8.**Base de Datos Relacional (PostgreSQL en Neon):** Persistencia de datos en base de datos relacional PostgreSQL alojada en Neon mediante JDBC/DAO.
+9. **Inicio de Sesión y Control de Roles:** Módulo de login para autenticar usuarios y diferenciar roles (Administrador vs. Mesero/Cajero).
 
 ### Funcionalidades Excluidas (y su razón)
+**Autenticación avanzada / Seguridad empresarial:** Se implementará un login funcional básico para el manejo de roles del sistema, sin llegar a estándares complejos de producción (como OAuth, SSO o políticas corporativas avanzadas).
 * **Pasarelas de pago reales:** El sistema simulará los pagos (efectivo/tarjeta) para enfocar el esfuerzo en la arquitectura y patrones, no en integraciones bancarias.
-* **Base de Datos relacional (SQL):** Se usará persistencia en archivos locales (JSON/TXT) para cumplir el objetivo académico de centrarnos en el diseño orientado a objetos.
-* **Autenticación avanzada:** Solo se implementará un login básico para diferenciar roles (Administrador vs Mesero/Cajero), sin llegar a estándares de producción.
+
+
 
 ## Documentación Adicional
 Toda la documentación profunda sobre la arquitectura, problemas de diseño, justificación de patrones (Strategy, Observer, Decorator) y los diagramas UML se encuentran en la pestaña **[Wiki](https://github.com/lunaisa21/Cafeteria/wiki)** de este repositorio.
