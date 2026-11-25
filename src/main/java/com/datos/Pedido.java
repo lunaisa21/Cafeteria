@@ -18,12 +18,15 @@ public class Pedido {
     private double total;
 
     public void cambiarEstadoPedido(EstadoPedido e) {
-        this.estado = estado;
     }
     public void agregarObservador(PedidoObservador o){
 
     }
     public void notificarObservadores(){
         
+    }
+
+    public void calcularSubtotal() {
+        return;
     }
 }
