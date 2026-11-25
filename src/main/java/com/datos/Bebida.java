@@ -4,8 +4,6 @@ import lombok.Setter;
 @Getter
 @Setter
 
-
-
 public class Bebida extends ItemMenu {
 
     private String tamano; // ej. "Pequeño", "Mediano", "Grande"
@@ -25,6 +23,10 @@ public class Bebida extends ItemMenu {
             base += " " + tamano;
         }
         return esFria ? base + " (fría)" : base + " (caliente)";
+    }
+
+    public double getPrecio() {
+
     }
 
     public void setTamano(String tamano) { this.tamano = tamano; }
