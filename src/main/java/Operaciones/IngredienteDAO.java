@@ -1,4 +1,4 @@
-package com.datos;
+package Operaciones;
 
 public class IngredienteDAO {
 }
