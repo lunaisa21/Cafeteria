@@ -26,4 +26,7 @@ public class Pedido {
     public void notificarObservadores(){
         
     }
+
+    public double calcularSubtotal() {
+    }
 }
