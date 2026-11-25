@@ -14,15 +14,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Controla el stock: valida existencia (RF13), descuenta al confirmar un pedido (RF11),
- * permite consultar/actualizar el stock (RF12) y avisa a los StockObservador cuando un
- * ingrediente llega al minimo (PATRON OBSERVER).
- */
 public class GestorInventario {
     private final Map<Integer, Ingrediente> ingredientes = new LinkedHashMap<>();
     private final List<StockObservador> observadores = new ArrayList<>();
     private final GenericDAO<Ingrediente> dao; // puede ser null: entonces solo memoria
+
+    public interface StockObservador {
+        void onStockMinimo(Ingrediente ingrediente);
+    }
 
     public GestorInventario() {
         this(null);
@@ -51,13 +50,17 @@ public class GestorInventario {
     }
 
     // ---------------- Observer ----------------
-    public void agregarObservador(StockObservador o) { observadores.add(o); }
+    public void agregarObservador(StockObservador o) {
+        if (o != null) observadores.add(o);
+    }
 
-    public void eliminarObservador(StockObservador o) { observadores.remove(o); }
+    public void eliminarObservador(StockObservador o) {
+        observadores.remove(o);
+    }
 
     private void notificarStockMinimo(Ingrediente i) {
         for (StockObservador o : new ArrayList<>(observadores)) {
-            o.alertaStockMinimo(i);
+            o.onStockMinimo(i);
         }
     }
 
@@ -108,14 +111,12 @@ public class GestorInventario {
     }
 
     // ---------------- validacion de existencia (RF13) ----------------
-    /** Hay stock para preparar {@code cantidad} unidades del producto (con o sin adiciones). */
     public boolean hayStock(Producto producto, int cantidad) {
         Map<Ingrediente, Double> requeridos = new LinkedHashMap<>();
         acumular(requeridos, producto, cantidad);
         return faltante(requeridos) == null;
     }
 
-    /** Hay stock para todo el pedido. */
     public boolean hayStock(Pedido pedido) {
         return faltante(requeridosDe(pedido)) == null;
     }
@@ -128,11 +129,6 @@ public class GestorInventario {
     }
 
     // ---------------- descuento automatico (RF11) ----------------
-    /**
-     * Descuenta del inventario todos los ingredientes del pedido. Es "todo o nada":
-     * si falta algo lanza IllegalStateException y no se modifica nada.
-     * Despues de descontar avisa a los observadores si algun ingrediente quedo en el minimo.
-     */
     public void descontarPedido(Pedido pedido) {
         Map<Ingrediente, Double> requeridos = requeridosDe(pedido);
         String problema = faltante(requeridos);
@@ -151,7 +147,6 @@ public class GestorInventario {
         }
     }
 
-
     public void devolverPedido(Pedido pedido) {
         for (Map.Entry<Ingrediente, Double> e : requeridosDe(pedido).entrySet()) {
             Ingrediente real = ingredientes.get(e.getKey().getIdIngrediente());
@@ -161,7 +156,6 @@ public class GestorInventario {
             }
         }
     }
-
 
     private Map<Ingrediente, Double> requeridosDe(Pedido pedido) {
         if (pedido == null) throw new IllegalArgumentException("El pedido es obligatorio.");
@@ -174,7 +168,6 @@ public class GestorInventario {
         return requeridos;
     }
 
-
     private void acumular(Map<Ingrediente, Double> destino, Producto producto, int cantidad) {
         Producto base = AdicionDecorator.productoBase(producto);
         if (base instanceof ItemMenu item) {
@@ -183,7 +176,6 @@ public class GestorInventario {
             }
         }
     }
-
 
     private String faltante(Map<Ingrediente, Double> requeridos) {
         for (Map.Entry<Ingrediente, Double> e : requeridos.entrySet()) {
