@@ -10,6 +10,7 @@ import java.util.List;
 @Getter
 @Setter
 public class Pedido {
+    private int idPedido;
     private int mesa;
     private LocalDateTime fecha;
     private EstadoPedido estado;
