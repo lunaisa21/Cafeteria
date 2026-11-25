@@ -3,7 +3,7 @@
 Sistema de gestión de pedidos para un local con productos personalizables, desarrollado en Java bajo principios de Programación Orientada a Objetos y patrones de diseño.
 
 ## Componentes técnicos
-* **Lenguaje:** JDK 21
+* **Lenguaje:** JDK 26
 * **Gestor de dependencias:** Maven 3.2
 * **Desarrollado por:** Luna Isabella Martinez Marthos, Daniel Alfonso Mateus Neva, Harold David Higuera Torres
 * **Versión:** 1.0
