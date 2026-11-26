@@ -1,4 +1,4 @@
-package com.interfaz;
+package Interfaz;
 
 import com.datos.*;
 import Operaciones.FachadaCafeteria;
