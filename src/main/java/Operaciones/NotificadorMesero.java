@@ -1,11 +1,15 @@
-package Operaciones;
+package com.operaciones;
 
+import Operaciones.PedidoObservador;
 import com.datos.EstadoPedido;
 import com.datos.LineaPedido;
 import com.datos.Pedido;
 
 import java.util.function.Consumer;
 
+/**
+ * Notifica al mesero cuando un pedido cambia de estado (RQ08).
+ */
 public class NotificadorMesero implements PedidoObservador {
     private Consumer<String> receptor;
 
@@ -36,6 +40,8 @@ public class NotificadorMesero implements PedidoObservador {
         }
         if (receptor != null) {
             receptor.accept(mensaje + resumen(pedido));
+        } else {
+            System.out.println(mensaje + resumen(pedido));
         }
     }
 
@@ -52,3 +58,4 @@ public class NotificadorMesero implements PedidoObservador {
         return sb.toString();
     }
 }
+

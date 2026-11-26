@@ -1,13 +1,17 @@
-package Operaciones;
+package com.operaciones;
 
+import Operaciones.PedidoObservador;
 import com.datos.EstadoPedido;
 import com.datos.LineaPedido;
 import com.datos.Pedido;
 
 import java.util.function.Consumer;
 
+/**
+ * Notifica a caja cuando un pedido se registra, entrega o cancela (RQ08).
+ */
 public class NotificadorCaja implements PedidoObservador {
-    private Consumer<String> receptor; // lo registra la interfaz (consola o GUI)
+    private Consumer<String> receptor;
 
     public void setReceptor(Consumer<String> receptor) {
         this.receptor = receptor;
@@ -26,16 +30,18 @@ public class NotificadorCaja implements PedidoObservador {
         String mensaje;
         switch (pedido.getEstado()) {
             case ENTREGADO:
-                mensaje = "[CAJA] Entregado, listo para cobrar $" + pedido.getTotal() + ". ";
+                mensaje = "[CAJA] Entregado, listo para cobrar $" + String.format("%.2f", pedido.getTotal()) + ". ";
                 break;
             case CANCELADO:
                 mensaje = "[CAJA] Pedido CANCELADO, no cobrar. ";
                 break;
             default:
-                mensaje = "[CAJA] Pedido registrado, total $" + pedido.getTotal() + ". ";
+                mensaje = "[CAJA] Pedido registrado, total $" + String.format("%.2f", pedido.getTotal()) + ". ";
         }
         if (receptor != null) {
             receptor.accept(mensaje + resumen(pedido));
+        } else {
+            System.out.println(mensaje + resumen(pedido));
         }
     }
 

@@ -1,11 +1,15 @@
-package Operaciones;
+package com.operaciones;
 
+import Operaciones.PedidoObservador;
 import com.datos.EstadoPedido;
 import com.datos.LineaPedido;
 import com.datos.Pedido;
 
 import java.util.function.Consumer;
 
+/**
+ * Notifica a cocina cuando un pedido es nuevo o se cancela (RQ08).
+ */
 public class NotificadorCocina implements PedidoObservador {
     private Consumer<String> receptor;
 
@@ -27,6 +31,8 @@ public class NotificadorCocina implements PedidoObservador {
                 : "[COCINA] Nuevo pedido por preparar. ";
         if (receptor != null) {
             receptor.accept(mensaje + resumen(pedido));
+        } else {
+            System.out.println(mensaje + resumen(pedido));
         }
     }
 
@@ -42,5 +48,4 @@ public class NotificadorCocina implements PedidoObservador {
         }
         return sb.toString();
     }
-
 }
