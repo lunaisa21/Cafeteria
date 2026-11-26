@@ -1,4 +1,4 @@
-package com.operaciones;
+package Operaciones;
 
 import Operaciones.PedidoObservador;
 import com.datos.EstadoPedido;
