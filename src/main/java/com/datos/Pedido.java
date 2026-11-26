@@ -1,6 +1,6 @@
 package com.datos;
 
-import operaciones.PedidoObservador;
+import Operaciones.PedidoObservador;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
