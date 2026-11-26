@@ -1,17 +1,21 @@
 package com.datos;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
 import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
 public class Promocion {
+
     private int idPromocion;
     private String nombre;
     private List<DayOfWeek> diasSemana = new ArrayList<>();
@@ -19,6 +23,7 @@ public class Promocion {
     private LocalTime horaFin;
     private double porcentaje;
     private boolean activa = true;
+
     public Promocion(int idPromocion, String nombre, List<DayOfWeek> diasSemana,
                      LocalTime horaInicio, LocalTime horaFin, double porcentaje) {
         if (nombre == null || nombre.isBlank()) {
@@ -38,15 +43,26 @@ public class Promocion {
         this.porcentaje = porcentaje;
         this.activa = true;
     }
+
     /** Tiene restriccion de dias de la semana. */
     public boolean tieneRestriccionDia() {
         return diasSemana != null && !diasSemana.isEmpty();
     }
+
     /** Tiene franja horaria. */
     public boolean tieneFranja() {
         return horaInicio != null && horaFin != null;
     }
+
     /** Aplica para un dia especifico. */
     public boolean aplicaDia(DayOfWeek dia) {
         return tieneRestriccionDia() && diasSemana.contains(dia);
     }
+
+    /** Aplica para una hora especifica. */
+    public boolean aplicaFranja(LocalTime hora) {
+        if (!tieneFranja() || hora == null) return false;
+        return !hora.isBefore(horaInicio) && !hora.isAfter(horaFin);
+    }
+}
+

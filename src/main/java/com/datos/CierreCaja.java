@@ -1,14 +1,15 @@
 package com.datos;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-/**
- * Representa el cierre de caja diario y su reporte de ventas (RQ06, RF09).
- */
+
+
 @Getter
 @Setter
 @AllArgsConstructor
@@ -18,12 +19,14 @@ public class CierreCaja {
     private double totalVentas;
     private int numPedidos;
     private List<Pedido> pedidos = new ArrayList<>();
+
     public CierreCaja(LocalDate fecha, double totalVentas, int numPedidos) {
         this.fecha = fecha;
         this.totalVentas = totalVentas;
         this.numPedidos = numPedidos;
         this.pedidos = new ArrayList<>();
     }
+
     /** Genera el reporte textual detallado de transacciones del dia (RQ06, RF09). */
     public String generarReporte() {
         StringBuilder sb = new StringBuilder();
@@ -54,3 +57,11 @@ public class CierreCaja {
                 sb.append("  Por cobrar:  $").append(String.format("%.2f", sinDefinir)).append("\n");
             }
         }
+        return sb.toString();
+    }
+
+    @Override
+    public String toString() {
+        return generarReporte();
+    }
+}

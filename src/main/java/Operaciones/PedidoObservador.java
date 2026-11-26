@@ -1,6 +1,4 @@
-package Operaciones;
-
-import com.datos.EstadoPedido;
+package operaciones;
 import com.datos.Pedido;
 
 public interface PedidoObservador {
