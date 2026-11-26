@@ -25,8 +25,9 @@ public class Bebida extends ItemMenu {
         return esFria ? base + " (fría)" : base + " (caliente)";
     }
 
+    @Override
     public double getPrecio() {
-
+        return getPrecioBase();
     }
 
     public void setTamano(String tamano) { this.tamano = tamano; }

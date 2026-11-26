@@ -8,4 +8,8 @@ import lombok.Setter;
 public class LineaPedido {
     private int cantidad;
     private Producto producto;
+
+    public double getSubtotal() {
+        return producto.getPrecio() * cantidad;
+    }
 }

@@ -39,7 +39,6 @@ public class Promocion {
         if ((horaInicio == null) != (horaFin == null)) {
             throw new IllegalArgumentException("La franja necesita hora de inicio y de fin");
         }
-        validarPorcentaje(porcentaje);
         this.idPromocion = idPromocion;
         this.nombre = nombre;
         this.diasSemana = diasSemana == null ? new ArrayList<>() : new ArrayList<>(diasSemana);
@@ -49,66 +48,4 @@ public class Promocion {
         this.activa = true;
     }
 
-    private static void validarPorcentaje(double porcentaje) {
-        if (porcentaje <= 0 || porcentaje > 100) {
-            throw new IllegalArgumentException("El porcentaje debe estar entre 0 (exclusivo) y 100");
-        }
-    }
-
-
-    public boolean tieneRestriccionDia() {
-        return !diasSemana.isEmpty();
-    }
-
-    public boolean tieneFranja() {
-        return horaInicio != null && horaFin != null;
-    }
-
-    public boolean aplicaDia(DayOfWeek dia) {
-        return diasSemana.isEmpty() || diasSemana.contains(dia);
-    }
-
-    public boolean aplicaFranja(LocalTime hora) {
-        if (!tieneFranja()) {
-            return true;
-        }
-        if (horaInicio.equals(horaFin)) { // franja de 24 h
-            return true;
-        }
-        if (horaInicio.isBefore(horaFin)) {
-            return !hora.isBefore(horaInicio) && hora.isBefore(horaFin);
-        }
-        // cruza la medianoche
-        return !hora.isBefore(horaInicio) || hora.isBefore(horaFin);
-    }
-
-
-    public boolean aplicaEn(LocalDateTime momento) {
-        return activa && aplicaDia(momento.getDayOfWeek()) && aplicaFranja(momento.toLocalTime());
-    }
-
-
-
-    public List<DayOfWeek> getDiasSemana() { return new ArrayList<>(diasSemana); }
-    public void setDiasSemana(List<DayOfWeek> diasSemana) {
-        this.diasSemana = diasSemana == null ? new ArrayList<>() : new ArrayList<>(diasSemana);
-    }
-
-    public void setFranja(LocalTime horaInicio, LocalTime horaFin) {
-        if ((horaInicio == null) != (horaFin == null)) {
-            throw new IllegalArgumentException("La franja necesita hora de inicio y de fin");
-        }
-        this.horaInicio = horaInicio;
-        this.horaFin = horaFin;
-    }
-
-    public void setPorcentaje(double porcentaje) {
-        validarPorcentaje(porcentaje);
-        this.porcentaje = porcentaje;
-    }
-
-    @Override
-    public String toString() {
-        return nombre + " (" + porcentaje + "%)";
-    }
 }
