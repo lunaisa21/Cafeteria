@@ -1,57 +1,43 @@
 package Operaciones;
 
-import com.datos.AdicionDecorator;
-import com.datos.Ingrediente;
-import com.datos.ItemMenu;
-import com.datos.LineaPedido;
-import com.datos.Pedido;
-import com.datos.Producto;
+import com.datos.*;
 
-import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Gestiona el inventario de ingredientes, valida existencias, descuenta por pedido
+ * y emite alertas de stock minimo (RF11, RF12, RF13, RQ05-NF).
+ */
 public class GestorInventario {
-    private final Map<Integer, Ingrediente> ingredientes = new LinkedHashMap<>();
+
+    private final IngredienteDAO ingredienteDAO;
     private final List<StockObservador> observadores = new ArrayList<>();
-    private final GenericDAO<Ingrediente> dao; // puede ser null: entonces solo memoria
+    private final Map<Integer, Ingrediente> ingredientes = new LinkedHashMap<>();
 
-    public interface StockObservador {
-        void onStockMinimo(Ingrediente ingrediente);
+    public GestorInventario(IngredienteDAO ingredienteDAO) {
+        if (ingredienteDAO == null) {
+            throw new IllegalArgumentException("El IngredienteDAO es obligatorio.");
+        }
+        this.ingredienteDAO = ingredienteDAO;
+        cargarDesdeDAO();
     }
 
-    public GestorInventario() {
-        this(null);
-    }
-
-    public GestorInventario(GenericDAO<Ingrediente> dao) {
-        this.dao = dao;
-        if (dao != null) {
-            for (Ingrediente i : dao.listarTodos()) {
-                ingredientes.put(i.getIdIngrediente(), i);
-            }
+    private void cargarDesdeDAO() {
+        ingredientes.clear();
+        for (Ingrediente i : ingredienteDAO.consultar()) {
+            ingredientes.put(i.getIdIngrediente(), i);
         }
     }
 
-    /** DAO de archivo para ingredientes: id|nombre|stockActual|stockMinimo */
-    public static ArchivoDAO<Ingrediente> crearDAO(Path archivo) {
-        return new ArchivoDAO<>(archivo,
-                i -> String.valueOf(i.getIdIngrediente()),
-                i -> i.getIdIngrediente() + "|" + i.getNombre().replace("|", " ") + "|"
-                        + i.getStockActual() + "|" + i.getStockMinimo(),
-                linea -> {
-                    String[] c = linea.split("\\|");
-                    return new Ingrediente(Integer.parseInt(c[0]), c[1],
-                            Double.parseDouble(c[2]), Double.parseDouble(c[3]));
-                });
-    }
+    // ---- Patron Observer (RQ05-NF) ----
 
-    // ---------------- Observer ----------------
     public void agregarObservador(StockObservador o) {
-        if (o != null) observadores.add(o);
+        if (o != null && !observadores.contains(o)) {
+            observadores.add(o);
+        }
     }
 
     public void eliminarObservador(StockObservador o) {
@@ -60,138 +46,179 @@ public class GestorInventario {
 
     private void notificarStockMinimo(Ingrediente i) {
         for (StockObservador o : new ArrayList<>(observadores)) {
-            o.onStockMinimo(i);
+            o.alertaStockMinimo(i);
         }
     }
 
-    // ---------------- administracion del stock (RF12) ----------------
+    // ---- Administracion de Stock (RF12) ----
+
     public void registrarIngrediente(Ingrediente i) {
-        if (i == null) throw new IllegalArgumentException("El ingrediente es obligatorio.");
-        if (ingredientes.containsKey(i.getIdIngrediente())) {
-            throw new IllegalArgumentException("Ya existe un ingrediente con id " + i.getIdIngrediente() + ".");
-        }
-        ingredientes.put(i.getIdIngrediente(), i);
-        persistir(i);
-        if (i.estaBajoMinimo()) notificarStockMinimo(i);
-    }
-
-    public void actualizarStock(int idIngrediente, double nuevoStock) {
-        Ingrediente i = obtener(idIngrediente);
-        i.setStockActual(nuevoStock);
-        persistir(i);
-        if (i.estaBajoMinimo()) notificarStockMinimo(i);
-    }
-
-    public void actualizarStockMinimo(int idIngrediente, double nuevoMinimo) {
-        Ingrediente i = obtener(idIngrediente);
-        i.setStockMinimo(nuevoMinimo);
-        persistir(i);
-    }
-
-    public void reponer(int idIngrediente, double cantidad) {
-        Ingrediente i = obtener(idIngrediente);
-        i.reponer(cantidad);
-        persistir(i);
-    }
-
-    public Ingrediente obtener(int idIngrediente) {
-        Ingrediente i = ingredientes.get(idIngrediente);
         if (i == null) {
-            throw new IllegalArgumentException("No existe el ingrediente con id " + idIngrediente + ".");
+            throw new IllegalArgumentException("El ingrediente es obligatorio.");
         }
-        return i;
+        cargarDesdeDAO();
+        if (ingredientes.containsKey(i.getIdIngrediente())) {
+            throw new IllegalArgumentException("Ya existe un ingrediente con ID " + i.getIdIngrediente()
+                    + ". Use un ID distinto o actualice el stock del existente.");
+        }
+        ingredienteDAO.crear(i);
+        ingredientes.put(i.getIdIngrediente(), i);
+        if (i.estaBajoMinimo()) {
+            notificarStockMinimo(i);
+        }
     }
 
-    public List<Ingrediente> listar() {
-        return List.copyOf(ingredientes.values());
+    /** Actualiza el stock actual de un ingrediente y verifica el minimo (RF12, RQ05-NF). */
+    public void actualizarStock(Ingrediente i, double nuevaCantidad) {
+        if (i == null) {
+            throw new IllegalArgumentException("Debe seleccionar un ingrediente valido.");
+        }
+        if (nuevaCantidad < 0) {
+            throw new IllegalArgumentException("El stock no puede ser negativo. Ingrese un valor mayor o igual a 0.");
+        }
+        cargarDesdeDAO();
+        Ingrediente real = ingredientes.getOrDefault(i.getIdIngrediente(), i);
+        real.setStockActual(nuevaCantidad);
+        i.setStockActual(nuevaCantidad);
+        ingredienteDAO.actualizar(real);
+        ingredientes.put(real.getIdIngrediente(), real);
+        if (real.estaBajoMinimo()) {
+            notificarStockMinimo(real);
+        }
     }
 
-    public List<Ingrediente> listarBajoMinimo() {
-        return ingredientes.values().stream().filter(Ingrediente::estaBajoMinimo).toList();
+    /** Repone una cantidad adicional al stock actual de un ingrediente. */
+    public void reponerStock(Ingrediente i, double cantidadAdicional) {
+        if (i == null) {
+            throw new IllegalArgumentException("Debe seleccionar un ingrediente valido.");
+        }
+        if (cantidadAdicional <= 0) {
+            throw new IllegalArgumentException("La cantidad a reponer debe ser mayor a 0.");
+        }
+        cargarDesdeDAO();
+        Ingrediente real = ingredientes.getOrDefault(i.getIdIngrediente(), i);
+        real.reponer(cantidadAdicional);
+        i.setStockActual(real.getStockActual());
+        ingredienteDAO.actualizar(real);
+        ingredientes.put(real.getIdIngrediente(), real);
     }
 
-    // ---------------- validacion de existencia (RF13) ----------------
-    public boolean hayStock(Producto producto, int cantidad) {
+    public List<Ingrediente> consultarStock() {
+        cargarDesdeDAO();
+        return new ArrayList<>(ingredientes.values());
+    }
+
+    public List<Ingrediente> consultarBajoMinimo() {
+        return ingredienteDAO.consultarBajoMinimo();
+    }
+
+    // ---- Validacion de stock (RF13) ----
+
+    public boolean hayStock(Producto p) {
+        return hayStock(p, 1);
+    }
+
+    public boolean hayStock(Producto p, int cantidad) {
+        if (p == null || cantidad <= 0) return false;
+        cargarDesdeDAO();
         Map<Ingrediente, Double> requeridos = new LinkedHashMap<>();
-        acumular(requeridos, producto, cantidad);
-        return faltante(requeridos) == null;
+        acumularIngredientes(requeridos, p, cantidad);
+        return buscarFaltante(requeridos) == null;
     }
 
     public boolean hayStock(Pedido pedido) {
-        return faltante(requeridosDe(pedido)) == null;
+        if (pedido == null) return false;
+        cargarDesdeDAO();
+        return buscarFaltante(requeridosDePedido(pedido)) == null;
     }
 
-    /** Marca como no disponibles los items del menu cuyos ingredientes se agotaron (RF13). */
-    public void actualizarDisponibilidad(Collection<? extends ItemMenu> items) {
-        for (ItemMenu item : items) {
-            item.setDisponible(hayStock(item, 1));
-        }
-    }
+    // ---- Descuento y reposicion por pedido (RF11) ----
 
-    // ---------------- descuento automatico (RF11) ----------------
-    public void descontarPedido(Pedido pedido) {
-        Map<Ingrediente, Double> requeridos = requeridosDe(pedido);
-        String problema = faltante(requeridos);
-        if (problema != null) {
-            throw new IllegalStateException(problema);
+    public void descontarPorPedido(Pedido p) {
+        if (p == null) {
+            throw new IllegalArgumentException("El pedido es obligatorio.");
         }
-        List<Ingrediente> tocados = new ArrayList<>();
-        for (Map.Entry<Ingrediente, Double> e : requeridos.entrySet()) {
-            Ingrediente real = ingredientes.get(e.getKey().getIdIngrediente());
-            real.descontar(e.getValue());
-            persistir(real);
-            tocados.add(real);
+        cargarDesdeDAO();
+        Map<Ingrediente, Double> requeridos = requeridosDePedido(p);
+        String faltante = buscarFaltante(requeridos);
+        if (faltante != null) {
+            throw new IllegalStateException(faltante);
         }
-        for (Ingrediente i : tocados) {
-            if (i.estaBajoMinimo()) notificarStockMinimo(i);
-        }
-    }
 
-    public void devolverPedido(Pedido pedido) {
-        for (Map.Entry<Ingrediente, Double> e : requeridosDe(pedido).entrySet()) {
-            Ingrediente real = ingredientes.get(e.getKey().getIdIngrediente());
-            if (real != null) {
-                real.reponer(e.getValue());
-                persistir(real);
+        List<Ingrediente> afectados = new ArrayList<>();
+        for (Map.Entry<Ingrediente, Double> entry : requeridos.entrySet()) {
+            Ingrediente real = ingredientes.get(entry.getKey().getIdIngrediente());
+            real.descontar(entry.getValue());
+            entry.getKey().setStockActual(real.getStockActual());
+            ingredienteDAO.actualizar(real);
+            afectados.add(real);
+        }
+        p.setStockDescontado(true);
+
+        for (Ingrediente ing : afectados) {
+            if (ing.estaBajoMinimo()) {
+                notificarStockMinimo(ing);
             }
         }
     }
 
-    private Map<Ingrediente, Double> requeridosDe(Pedido pedido) {
-        if (pedido == null) throw new IllegalArgumentException("El pedido es obligatorio.");
+    public void reponerPorPedido(Pedido p) {
+        if (p == null || !p.isStockDescontado()) {
+            return;
+        }
+        cargarDesdeDAO();
+        Map<Ingrediente, Double> requeridos = requeridosDePedido(p);
+        for (Map.Entry<Ingrediente, Double> entry : requeridos.entrySet()) {
+            Ingrediente real = ingredientes.get(entry.getKey().getIdIngrediente());
+            if (real != null) {
+                real.reponer(entry.getValue());
+                entry.getKey().setStockActual(real.getStockActual());
+                ingredienteDAO.actualizar(real);
+            }
+        }
+        p.setStockDescontado(false);
+    }
+
+    // ---- Helpers internos ----
+
+    private Map<Ingrediente, Double> requeridosDePedido(Pedido pedido) {
         Map<Ingrediente, Double> requeridos = new LinkedHashMap<>();
         if (pedido.getLineas() != null) {
-            for (LineaPedido l : pedido.getLineas()) {
-                acumular(requeridos, l.getProducto(), l.getCantidad());
+            for (LineaPedido linea : pedido.getLineas()) {
+                acumularIngredientes(requeridos, linea.getProducto(), linea.getCantidad());
             }
         }
         return requeridos;
     }
 
-    private void acumular(Map<Ingrediente, Double> destino, Producto producto, int cantidad) {
-        Producto base = AdicionDecorator.productoBase(producto);
-        if (base instanceof ItemMenu item) {
-            for (Map.Entry<Ingrediente, Double> r : item.getReceta().entrySet()) {
-                destino.merge(r.getKey(), r.getValue() * cantidad, Double::sum);
+    private void acumularIngredientes(Map<Ingrediente, Double> destino, Producto producto, int cantidad) {
+        Producto actual = producto;
+        while (actual instanceof AdicionDecorator adicion) {
+            for (Map.Entry<Ingrediente, Double> e : adicion.getReceta().entrySet()) {
+                destino.merge(e.getKey(), e.getValue() * cantidad, Double::sum);
+            }
+            actual = adicion.getProducto();
+        }
+        if (actual instanceof ItemMenu item) {
+            for (Map.Entry<Ingrediente, Double> e : item.getReceta().entrySet()) {
+                destino.merge(e.getKey(), e.getValue() * cantidad, Double::sum);
             }
         }
     }
 
-    private String faltante(Map<Ingrediente, Double> requeridos) {
-        for (Map.Entry<Ingrediente, Double> e : requeridos.entrySet()) {
-            Ingrediente real = ingredientes.get(e.getKey().getIdIngrediente());
+    private String buscarFaltante(Map<Ingrediente, Double> requeridos) {
+        for (Map.Entry<Ingrediente, Double> entry : requeridos.entrySet()) {
+            Ingrediente real = ingredientes.get(entry.getKey().getIdIngrediente());
             if (real == null) {
-                return "El ingrediente '" + e.getKey().getNombre() + "' no esta registrado en el inventario.";
+                return "El ingrediente '" + entry.getKey().getNombre()
+                        + "' no esta registrado en el inventario. Registrelo primero.";
             }
-            if (!real.hayStock(e.getValue())) {
-                return "Stock insuficiente de " + real.getNombre() + " (hay " + real.getStockActual()
-                        + ", se necesitan " + e.getValue() + ").";
+            if (!real.hayStock(entry.getValue())) {
+                return "Stock insuficiente de '" + real.getNombre() + "' (disponible: "
+                        + real.getStockActual() + ", requerido: " + entry.getValue()
+                        + "). Reponer stock o reducir la cantidad.";
             }
         }
         return null;
-    }
-
-    private void persistir(Ingrediente i) {
-        if (dao != null) dao.guardar(i);
     }
 }

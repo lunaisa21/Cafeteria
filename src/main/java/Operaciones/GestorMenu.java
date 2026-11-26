@@ -1,80 +1,136 @@
 package Operaciones;
 
-import com.datos.AdicionDecorator;
-import com.datos.ItemMenu;
-import com.datos.Producto;
+import com.datos.*;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-
+/**
+ * Gestiona la presentacion del menu, personalizacion con adiciones
+ * y ocultamiento automatico de productos agotados (RQ01, RQ02, RQ03, RQ07, RF13).
+ */
 public class GestorMenu {
 
-    private final GenericDAO<ItemMenu> itemMenuDAO;
+    private final ItemMenuDAO itemMenuDAO;
     private final GestorInventario inventario;
     private final List<AdicionDecorator> catalogoAdiciones = new ArrayList<>();
 
-    public GestorMenu(GenericDAO<ItemMenu> itemMenuDAO, GestorInventario inventario) {
+    public GestorMenu(ItemMenuDAO itemMenuDAO, GestorInventario inventario) {
         if (itemMenuDAO == null || inventario == null) {
-            throw new IllegalArgumentException("El DAO del menú y el inventario son obligatorios");
+            throw new IllegalArgumentException("ItemMenuDAO y GestorInventario son obligatorios.");
         }
         this.itemMenuDAO = itemMenuDAO;
         this.inventario = inventario;
     }
 
-    /** Retorna los ítems del menú disponibles tras actualizar el estado según inventario. */
+    /** Oculta items sin stock y devuelve los disponibles (RQ01, RF13). */
     public List<ItemMenu> presentarMenu() {
         ocultarAgotados();
-        return itemMenuDAO.consultar().stream()
-                .filter(ItemMenu::isDisponible)
-                .toList();
+        return itemMenuDAO.consultarDisponibles();
     }
 
-    /**
-     * Marca como no disponibles los ítems sin stock suficiente y vuelve a habilitar
-     * los que ya tienen ingredientes disponibles; actualiza solo los que cambian.
-     */
+    /** Devuelve todos los items del menu (incluidos agotados, para administracion). */
+    public List<ItemMenu> consultarTodos() {
+        ocultarAgotados();
+        return itemMenuDAO.consultar();
+    }
+
+    /** Configura/filtra el menu segun preferencias del usuario (RQ03). */
+    public List<ItemMenu> presentarMenuFiltrado(boolean soloVegetarianos, Boolean soloBebidasFrias) {
+        List<ItemMenu> disponibles = presentarMenu();
+        List<ItemMenu> filtrados = new ArrayList<>();
+        for (ItemMenu item : disponibles) {
+            if (soloVegetarianos) {
+                if (item instanceof Plato plato && plato.isEsVegetariano()) {
+                    filtrados.add(item);
+                }
+                continue;
+            }
+            if (soloBebidasFrias != null) {
+                if (item instanceof Bebida bebida && bebida.isEsFria() == soloBebidasFrias) {
+                    filtrados.add(item);
+                }
+                continue;
+            }
+            filtrados.add(item);
+        }
+        return filtrados;
+    }
+
+    /** Agrega una adicion (Decorator) validando disponibilidad de ingredientes (RQ02, RQ07, RF13). */
+    public Producto agregarAdicion(Producto p, AdicionDecorator a) {
+        if (p == null || a == null) {
+            throw new IllegalArgumentException("Debe seleccionar un producto base y una adicion valida.");
+        }
+        if (!inventario.hayStock(a)) {
+            a.setDisponible(false);
+            throw new IllegalStateException("La adicion '" + a.getNombre()
+                    + "' esta agotada. Seleccione otra adicion o continue sin ella.");
+        }
+        return a.aplicarA(p);
+    }
+
+    /** Bloquea/oculta platos, bebidas y adiciones cuyos ingredientes no tengan stock (RF13). */
     public void ocultarAgotados() {
         for (ItemMenu item : itemMenuDAO.consultar()) {
-            boolean hayStock = inventario.hayStock(item, 1);
+            boolean hayStock = inventario.hayStock(item);
             if (item.isDisponible() != hayStock) {
                 item.setDisponible(hayStock);
                 itemMenuDAO.actualizar(item);
             }
         }
+        for (AdicionDecorator adicion : catalogoAdiciones) {
+            adicion.setDisponible(inventario.hayStock(adicion));
+        }
     }
 
-    /** Firma del diagrama: envuelve un Producto en un nuevo AdicionDecorator sin mutar el original. */
-    public Producto agregarAdicion(Producto p, AdicionDecorator a) {
-        if (p == null || a == null) {
-            throw new IllegalArgumentException("El producto y la adición son obligatorios");
+    // ---- Gestion de catalogo (Admin) ----
+
+    public void registrarItem(ItemMenu item) {
+        if (item == null) {
+            throw new IllegalArgumentException("El item del menu es obligatorio.");
         }
-        return new AdicionDecorator(p, a.getNombre(), a.getCostoExtra());
+        item.setDisponible(inventario.hayStock(item));
+        itemMenuDAO.crear(item);
     }
 
-    /** Sobrecarga auxiliar para buscar una adición registrada por nombre en el catálogo. */
-    public Producto agregarAdicion(Producto p, String nombreAdicion) {
-        if (nombreAdicion == null || nombreAdicion.isBlank()) {
-            throw new IllegalArgumentException("El nombre de la adición es obligatorio");
+    public void actualizarItem(ItemMenu item) {
+        if (item == null) {
+            throw new IllegalArgumentException("El item del menu es obligatorio.");
         }
-        AdicionDecorator modelo = catalogoAdiciones.stream()
-                .filter(a -> a.getNombre().equalsIgnoreCase(nombreAdicion.trim()))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "La adición '" + nombreAdicion + "' no existe en el catálogo"));
-        return agregarAdicion(p, modelo);
+        item.setDisponible(inventario.hayStock(item));
+        itemMenuDAO.actualizar(item);
     }
 
-    public void registrarAdicion(AdicionDecorator modelo) {
-        if (modelo == null) {
-            throw new IllegalArgumentException("La adición es obligatoria");
+    public void eliminarItem(ItemMenu item) {
+        if (item == null) {
+            throw new IllegalArgumentException("Debe seleccionar el item a eliminar.");
         }
-        catalogoAdiciones.removeIf(a -> a.getNombre().equalsIgnoreCase(modelo.getNombre()));
-        catalogoAdiciones.add(modelo);
+        itemMenuDAO.eliminar(item);
+    }
+
+    public void registrarAdicion(AdicionDecorator plantilla) {
+        if (plantilla == null) {
+            throw new IllegalArgumentException("La adicion es obligatoria.");
+        }
+        catalogoAdiciones.removeIf(a -> a.getNombre().equalsIgnoreCase(plantilla.getNombre()));
+        plantilla.setDisponible(inventario.hayStock(plantilla));
+        catalogoAdiciones.add(plantilla);
     }
 
     public List<AdicionDecorator> getCatalogoAdiciones() {
         return Collections.unmodifiableList(catalogoAdiciones);
+    }
+
+    public List<AdicionDecorator> getAdicionesDisponibles() {
+        ocultarAgotados();
+        List<AdicionDecorator> disponibles = new ArrayList<>();
+        for (AdicionDecorator a : catalogoAdiciones) {
+            if (a.isDisponible()) {
+                disponibles.add(a);
+            }
+        }
+        return disponibles;
     }
 }

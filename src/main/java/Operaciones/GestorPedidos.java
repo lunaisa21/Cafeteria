@@ -1,21 +1,34 @@
 package Operaciones;
 
 import com.datos.EstadoPedido;
-import com.datos.LineaPedido;
+import com.datos.MetodoPago;
 import com.datos.Pedido;
 
-import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.List;
 
+/**
+ * Orquesta el ciclo de vida de los pedidos: creacion, confirmacion,
+ * descuento de inventario, promociones, cambios de estado y notificaciones (RQ05, RQ08, RF11).
+ */
 public class GestorPedidos {
+
     private final GestorInventario inventario;
     private final MotorPromociones promociones;
-    private final GenericDAO<Pedido> pedidoDAO;
+    private final PedidoDAO pedidoDAO;
     private final PedidoObservador notificadorCocina;
     private final PedidoObservador notificadorCaja;
     private final PedidoObservador notificadorMesero;
 
-    public GestorPedidos(GestorInventario inventario, MotorPromociones promociones, GenericDAO<Pedido> pedidoDAO, PedidoObservador notificadorCocina, PedidoObservador notificadorCaja, PedidoObservador notificadorMesero) {
+    public GestorPedidos(GestorInventario inventario,
+                         MotorPromociones promociones,
+                         PedidoDAO pedidoDAO,
+                         PedidoObservador notificadorCocina,
+                         PedidoObservador notificadorCaja,
+                         PedidoObservador notificadorMesero) {
+        if (inventario == null || promociones == null || pedidoDAO == null) {
+            throw new IllegalArgumentException("Inventario, promociones y PedidoDAO son obligatorios.");
+        }
         this.inventario = inventario;
         this.promociones = promociones;
         this.pedidoDAO = pedidoDAO;
@@ -24,150 +37,160 @@ public class GestorPedidos {
         this.notificadorMesero = notificadorMesero;
     }
 
-    public  Pedido crearPedido(int mesa){
-        if (mesa <= 0){
-            throw  new IllegalArgumentException("El numero de mesa debe ser mayor a cero");
+    /** Crea un nuevo pedido en estado PENDIENTE con sus observadores conectados. */
+    public Pedido crearPedido(int mesa) {
+        if (mesa <= 0) {
+            throw new IllegalArgumentException("El numero de mesa debe ser mayor a 0.");
         }
-        Pedido pedido = new Pedido();
-        pedido.agregarObservador(notificadorCocina);
-        pedido.agregarObservador(notificadorCaja);
-        pedido.agregarObservador(notificadorMesero);
+        Pedido pedido = new Pedido(mesa);
+        registrarObservadores(pedido);
         return pedido;
     }
-    public void confirmarPedido(Pedido pedido) {
-        validarNoNulo(pedido);
 
-        if (pedido.getEstado() != EstadoPedido.PENDIENTE) {
+    /** Confirma el pedido: valida stock, calcula promociones, descuenta ingredientes, persiste y notifica. */
+    public void confirmarPedido(Pedido p) {
+        validarNoNulo(p);
+        if (p.getEstado() != EstadoPedido.PENDIENTE) {
             throw new IllegalStateException("Solo se pueden confirmar pedidos en estado PENDIENTE.");
         }
-
-        List<LineaPedido> lineas = pedido.getLineas();
-        if (lineas.isEmpty()) {
-            throw new IllegalStateException("El pedido no tiene productos. Agregue al menos uno.");
+        if (p.getLineas() == null || p.getLineas().isEmpty()) {
+            throw new IllegalStateException("El pedido esta vacio. Agregue al menos un plato o bebida antes de confirmar.");
+        }
+        if (!inventario.hayStock(p)) {
+            throw new IllegalStateException("No hay stock suficiente para completar este pedido. "
+                    + "Revise los productos seleccionados o reponga inventario.");
         }
 
-        // Verificacion previa para dar un mensaje claro (el descuento real es atomico en SQL)
-        for (LineaPedido linea : lineas) {
-            if (!inventario.hayStock(linea.getProducto())) {
-                throw new IllegalStateException("No hay stock suficiente de: "
-                        + linea.getProducto().getDescripcion()
-                        + ". Quite el producto o elija otro.");
+        double subtotal = p.calcularSubtotal();
+        double descuento = promociones.calcularDescuento(p);
+        p.setSubtotal(subtotal);
+        p.setDescuento(descuento);
+        p.setTotal(subtotal - descuento);
+
+        inventario.descontarPorPedido(p);
+        try {
+            if (p.getIdPedido() <= 0) {
+                pedidoDAO.crear(p);
+            } else {
+                pedidoDAO.actualizar(p);
             }
+        } catch (RuntimeException ex) {
+            inventario.reponerPorPedido(p);
+            throw ex;
         }
 
-        double subtotal = pedido.calcularSubtotal();
-        double descuento = promociones.calcularDescuento(pedido);
-        pedido.setSubtotal(subtotal);
-        pedido.setDescuento(descuento);
-        pedido.setTotal(subtotal - descuento);
-
-        try (Connection con = conexion.obtenerConexion()) {
-            con.setAutoCommit(false);
-            try {
-                // UPDATE ingrediente SET stock = stock - ? WHERE id = ? AND stock >= ?
-                // Si no actualiza ninguna fila, lanza IllegalStateException (sin stock).
-                inventario.descontarPorPedido(pedido, con);
-                pedido.setStockDescontado(true);
-                pedidoDAO.crear(pedido, con);   // asigna el idPedido generado
-                con.commit();
-            } catch (SQLException | RuntimeException e) {
-                con.rollback();
-                pedido.setStockDescontado(false);
-                throw e;
-            }
-        } catch (SQLException e) {
-            throw errorBD("No se pudo confirmar el pedido. Intente de nuevo.", e);
-        }
-
-        // Solo se notifica cuando todo quedo guardado
-        pedido.notificarObservadores();
+        registrarObservadores(p);
+        p.notificarObservadores();
     }
 
-    /** Cambia el estado validando la transicion; guarda y luego notifica (RQ05, RQ08). */
-    public void actualizarEstado(Pedido pedido, EstadoPedido nuevoEstado) {
-        validarNoNulo(pedido);
+    /** Actualiza el estado del pedido validando la transicion, persiste y notifica (RQ05, RQ08). */
+    public void actualizarEstado(Pedido p, EstadoPedido nuevoEstado) {
+        validarNoNulo(p);
         if (nuevoEstado == null) {
             throw new IllegalArgumentException("Debe indicar el nuevo estado del pedido.");
         }
-        validarTransicion(pedido.getEstado(), nuevoEstado);
-
-        try (Connection con = conexion.obtenerConexion()) {
-            pedidoDAO.actualizarEstado(pedido.getIdPedido(), nuevoEstado,
-                    pedido.isStockDescontado(), con);
-        } catch (SQLException e) {
-            throw errorBD("No se pudo actualizar el estado del pedido.", e);
-        }
-
-        pedido.cambiarEstado(nuevoEstado); // Pedido notifica a cocina, caja y mesero
-    }
-
-    /**
-     * Cancela el pedido. Si estaba PENDIENTE y ya se habia descontado el stock,
-     * lo repone en la misma transaccion; en otros estados no se reintegra.
-     */
-    public void cancelarPedido(Pedido pedido) {
-        validarNoNulo(pedido);
-        validarTransicion(pedido.getEstado(), EstadoPedido.CANCELADO);
-
-        boolean debeReponer = pedido.getEstado() == EstadoPedido.PENDIENTE
-                && pedido.isStockDescontado();
-
-        if (!debeReponer) {
-            actualizarEstado(pedido, EstadoPedido.CANCELADO);
+        if (nuevoEstado == EstadoPedido.CANCELADO) {
+            cancelarPedido(p);
             return;
         }
 
-        try (Connection con = conexion.obtenerConexion()) {
-            con.setAutoCommit(false);
-            try {
-                inventario.reponerPorPedido(pedido, con);
-                pedidoDAO.actualizarEstado(pedido.getIdPedido(),
-                        EstadoPedido.CANCELADO, false, con);
-                con.commit();
-            } catch (SQLException | RuntimeException e) {
-                con.rollback();
-                throw e;
+        EstadoPedido estadoAnterior = p.getEstado();
+        validarTransicion(estadoAnterior, nuevoEstado);
+
+        p.setEstado(nuevoEstado);
+        try {
+            pedidoDAO.actualizar(p);
+        } catch (RuntimeException ex) {
+            p.setEstado(estadoAnterior);
+            throw ex;
+        }
+
+        registrarObservadores(p);
+        p.notificarObservadores();
+    }
+
+    /** Cancela un pedido y repone el stock si aun estaba PENDIENTE con stock descontado. */
+    public void cancelarPedido(Pedido p) {
+        validarNoNulo(p);
+        EstadoPedido estadoAnterior = p.getEstado();
+        validarTransicion(estadoAnterior, EstadoPedido.CANCELADO);
+
+        boolean repusoStock = false;
+        if (estadoAnterior == EstadoPedido.PENDIENTE && p.isStockDescontado()) {
+            inventario.reponerPorPedido(p);
+            repusoStock = true;
+        }
+
+        p.setEstado(EstadoPedido.CANCELADO);
+        try {
+            if (p.getIdPedido() > 0) {
+                pedidoDAO.actualizar(p);
             }
-        } catch (SQLException e) {
-            throw errorBD("No se pudo cancelar el pedido. Intente de nuevo.", e);
+        } catch (RuntimeException ex) {
+            p.setEstado(estadoAnterior);
+            if (repusoStock) {
+                inventario.descontarPorPedido(p);
+            }
+            throw ex;
         }
 
-        // Memoria actualizada solo despues del commit
-        pedido.setStockDescontado(false);
-        pedido.cambiarEstado(EstadoPedido.CANCELADO);
+        registrarObservadores(p);
+        p.notificarObservadores();
     }
 
-    // ---------- Auxiliares ----------
+    /** Registra o actualiza el metodo de pago del pedido. */
+    public void asignarMetodoPago(Pedido p, MetodoPago metodo) {
+        validarNoNulo(p);
+        if (metodo == null) {
+            throw new IllegalArgumentException("Debe elegir un metodo de pago valido (EFECTIVO o TARJETA).");
+        }
+        p.setMetodoPago(metodo);
+        if (p.getIdPedido() > 0) {
+            pedidoDAO.actualizar(p);
+        }
+    }
 
-    /** PENDIENTE -> EN_PREPARACION -> LISTO -> ENTREGADO; cancelar solo antes de LISTO. */
+    public List<Pedido> consultarTodos() {
+        List<Pedido> lista = pedidoDAO.consultar();
+        for (Pedido p : lista) {
+            registrarObservadores(p);
+        }
+        return lista;
+    }
+
+    public List<Pedido> consultarPorFecha(LocalDate fecha) {
+        List<Pedido> lista = pedidoDAO.consultarPorFecha(fecha);
+        for (Pedido p : lista) {
+            registrarObservadores(p);
+        }
+        return lista;
+    }
+
+    // ---- Auxiliares ----
+
+    private void registrarObservadores(Pedido p) {
+        p.agregarObservador(notificadorCocina);
+        p.agregarObservador(notificadorCaja);
+        p.agregarObservador(notificadorMesero);
+    }
+
     private void validarTransicion(EstadoPedido actual, EstadoPedido nuevo) {
-        boolean valida;
-        switch (actual) {
-            case PENDIENTE:
-                valida = nuevo == EstadoPedido.EN_PREPARACION || nuevo == EstadoPedido.CANCELADO;
-                break;
-            case EN_PREPARACION:
-                valida = nuevo == EstadoPedido.LISTO || nuevo == EstadoPedido.CANCELADO;
-                break;
-            case LISTO:
-                valida = nuevo == EstadoPedido.ENTREGADO;
-                break;
-            default: // ENTREGADO y CANCELADO son estados finales
-                valida = false;
-        }
+        boolean valida = switch (actual) {
+            case PENDIENTE -> nuevo == EstadoPedido.EN_PREPARACION || nuevo == EstadoPedido.CANCELADO;
+            case EN_PREPARACION -> nuevo == EstadoPedido.LISTO || nuevo == EstadoPedido.CANCELADO;
+            case LISTO -> nuevo == EstadoPedido.ENTREGADO;
+            case ENTREGADO, CANCELADO -> false;
+        };
         if (!valida) {
-            throw new IllegalStateException("No se puede pasar de " + actual + " a " + nuevo + ".");
+            throw new IllegalStateException("Transicion invalida de " + actual + " a " + nuevo
+                    + ". Flujo permitido: PENDIENTE -> EN_PREPARACION -> LISTO -> ENTREGADO (o CANCELADO antes de LISTO).");
         }
     }
 
-    private void validarNoNulo(Pedido pedido) {
-        if (pedido == null) {
-            throw new IllegalArgumentException("El pedido no existe.");
+    private void validarNoNulo(Pedido p) {
+        if (p == null) {
+            throw new IllegalArgumentException("El pedido seleccionado no existe.");
         }
     }
-
-    private IllegalStateException errorBD(String mensaje, SQLException causa) {
-        return new IllegalStateException(mensaje, causa);
-    }
-
 }
+
