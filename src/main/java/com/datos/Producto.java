@@ -1,7 +1,7 @@
 package com.datos;
 
-public interface Producto {
 
+public interface Producto {
     String getDescripcion();
     double getPrecio();
 }

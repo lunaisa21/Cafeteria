@@ -1,43 +1,34 @@
 package com.datos;
-
-
-import lombok.Getter;
 import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
 import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.time.LocalDateTime;
-
 @Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor
-
-
-
 public class Promocion {
-
-    @Setter
     private int idPromocion;
-    @Setter
     private String nombre;
-    private List<DayOfWeek> diasSemana;
+    private List<DayOfWeek> diasSemana = new ArrayList<>();
     private LocalTime horaInicio;
     private LocalTime horaFin;
     private double porcentaje;
-    @Setter
-    private boolean activa;
-
+    private boolean activa = true;
     public Promocion(int idPromocion, String nombre, List<DayOfWeek> diasSemana,
                      LocalTime horaInicio, LocalTime horaFin, double porcentaje) {
         if (nombre == null || nombre.isBlank()) {
-            throw new IllegalArgumentException("El nombre de la promoción es obligatorio");
+            throw new IllegalArgumentException("El nombre de la promocion es obligatorio");
         }
         if ((horaInicio == null) != (horaFin == null)) {
             throw new IllegalArgumentException("La franja necesita hora de inicio y de fin");
+        }
+        if (porcentaje < 0 || porcentaje > 100) {
+            throw new IllegalArgumentException("El porcentaje debe estar entre 0 y 100");
         }
         this.idPromocion = idPromocion;
         this.nombre = nombre;
@@ -47,5 +38,15 @@ public class Promocion {
         this.porcentaje = porcentaje;
         this.activa = true;
     }
-
-}
+    /** Tiene restriccion de dias de la semana. */
+    public boolean tieneRestriccionDia() {
+        return diasSemana != null && !diasSemana.isEmpty();
+    }
+    /** Tiene franja horaria. */
+    public boolean tieneFranja() {
+        return horaInicio != null && horaFin != null;
+    }
+    /** Aplica para un dia especifico. */
+    public boolean aplicaDia(DayOfWeek dia) {
+        return tieneRestriccionDia() && diasSemana.contains(dia);
+    }
